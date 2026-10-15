@@ -186,7 +186,7 @@
     const names = folders.map(item => JSON.stringify(item.name || '(unnamed)'));
     const nested = folders.flatMap(item =>
       (Array.isArray(item.contents) ? item.contents : [])
-        .filter(child => child?.isfolder).map(child => `${item.name}/${child.name}`);
+        .filter(child => child?.isfolder).map(child => `${item.name}/${child.name}`));
     const nestedDetails = folders.map(item =>
       `${item.name}: ${Array.isArray(item.contents) ? item.contents.length + ' item(s) returned' : 'contents not included in API response'}`);
     return [
