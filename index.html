@@ -178,7 +178,7 @@
   const diagnosticsText = document.getElementById('folder-diagnostics-text');
   const normaliseFolderName = value => String(value || '')
     .normalize('NFKC').replace(/[\u2010-\u2015\u2212]/g,'-')
-    .toLowerCase().replace(/\s*-\s*/g,'-').replace(/\s+/g,' ').trim();
+    .toLowerCase().replace(/^\s*\d+\s*[-_.]?\s*/,'').replace(/\s*-\s*/g,'-').replace(/\s+/g,' ').trim();
   const describeFolderResponse = metadata => {
     const contents = Array.isArray(metadata?.contents) ? metadata.contents : [];
     const folders = contents.filter(item => item?.isfolder);
@@ -195,7 +195,7 @@
       `Root-level files (${files.length})`,
       `Nested folder examples: ${nested.join(', ') || '(none returned)'}`,
       ...nestedDetails,
-      'Expected directly inside the shared folder: 00 - Cover and 01 - Ceremony.',
+      'Expected folders directly inside the shared folder: Cover and Ceremony (numeric prefixes optional).',
       'If pCloud lists other folders, check their location and names in the pCloud file manager.'
     ].join('\n');
   };
@@ -244,9 +244,9 @@
       const coverPhotos=folderPhotos(data.metadata,coverFolder);
       const ceremonyPhotos=folderPhotos(data.metadata,ceremonyFolder);
       const warnings=[];
-      if (!coverFolder) warnings.push('Missing folder: 00 - Cover');
+      if (!coverFolder) warnings.push('Missing Cover folder (Cover or 00 - Cover)');
       else if (!coverPhotos.length) warnings.push('No cover photo found');
-      if (!ceremonyFolder) warnings.push('Missing folder: 01 - Ceremony');
+      if (!ceremonyFolder) warnings.push('Missing Ceremony folder (Ceremony or 01 - Ceremony)');
       else if (!ceremonyPhotos.length) warnings.push('No ceremony photos found');
       if (coverPhotos.length > 1) warnings.push(`Multiple cover photos (${coverPhotos.length}); showing first by filename`);
 
@@ -271,7 +271,7 @@
           imageLoads.push(showImage(img,photo,'1200x900'));
         }
       } else {
-        ceremonyEmpty.textContent='No photographs yet. Add images to 01 - Ceremony in pCloud, then refresh this page.';
+        ceremonyEmpty.textContent='No photographs yet. Add images to your Ceremony folder in pCloud, then refresh this page.';
       }
       const results=await Promise.all(imageLoads);
       const failed=results.filter(ok=>!ok).length;
