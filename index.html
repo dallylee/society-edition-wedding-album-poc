@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <title>Society Edition | pCloud Album Connectivity Test</title>
+  <title>Society Edition | Folder-Aware Wedding Album Test</title>
   <style>
     :root { color-scheme: light; --ink:#222321; --muted:#6c6c67; --paper:#f8f5ef; --line:#ded8cb; --green:#235a40; --red:#a53c32; }
     * { box-sizing: border-box; }
@@ -31,6 +31,42 @@
     .tile figcaption { color:var(--muted); font-size:11px; overflow-wrap:anywhere; margin-top:6px; }
     code { font-size:13px; overflow-wrap:anywhere; }
     .foot { padding-top:14px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); }
+
+    /* Test C: a folder-aware album, independent of the existing Test A/B checks. */
+    .album-demo { padding:0; overflow:hidden; }
+    .album-top { padding:23px; }
+    .album-top h2 { font-size:clamp(27px,4vw,36px); }
+    .album-top p { margin-bottom:12px; }
+    .album-top button { margin-top:10px; }
+    .album-status { margin-top:13px; }
+    .cover { min-height:350px; position:relative; background:#bbb0a0; color:white; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-end; text-align:center; isolation:isolate; }
+    .cover::after { content:''; position:absolute; inset:0; z-index:-1; background:linear-gradient(180deg,rgba(0,0,0,.1),rgba(0,0,0,.08) 35%,rgba(0,0,0,.68)); }
+    .cover-image { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:-2; display:none; }
+    .cover-image.visible { display:block; }
+    .cover-copy { position:relative; z-index:1; padding:65px 24px 31px; text-shadow:0 1px 18px rgba(0,0,0,.34); }
+    .cover-copy h3 { font:normal clamp(41px,7.5vw,82px)/1.04 Georgia,'Times New Roman',serif; margin:10px 0 13px; }
+    .cover-copy .smallcaps { font-size:11px; letter-spacing:.24em; text-transform:uppercase; }
+    .cover-copy .byline { font-family:Georgia,'Times New Roman',serif; font-size:16px; font-style:italic; }
+    .chapter { padding:30px 23px; }
+    .chapter-head { text-align:center; margin:0 0 23px; }
+    .chapter-head h3 { font:normal clamp(29px,4vw,43px)/1.18 Georgia,'Times New Roman',serif; margin:7px 0 8px; }
+    .chapter-head p { font-size:13px; color:var(--muted); margin:0; }
+    .chapter-gallery { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .chapter-gallery figure { margin:0; min-width:0; }
+    .chapter-gallery img { display:block; width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:5px; background:#e7e0d6; }
+    .chapter-gallery figure:first-child:nth-last-child(odd) { grid-column:1 / -1; }
+    .chapter-gallery figure:first-child:nth-last-child(odd) img { aspect-ratio:16/10; }
+    .chapter-gallery figcaption { color:var(--muted); font-size:11px; padding:5px 2px; overflow-wrap:anywhere; }
+    .album-empty { padding:18px; text-align:center; border:1px dashed var(--line); color:var(--muted); font-size:13px; border-radius:8px; }
+    .is-hidden { display:none; }
+    button:disabled { opacity:.65; cursor:wait; }
+    @media (max-width:600px) {
+      .album-top,.chapter { padding:19px; }
+      .cover { min-height:400px; }
+      .cover-copy { padding:70px 18px 29px; }
+      .chapter-gallery { gap:9px; }
+      .chapter-gallery figcaption { font-size:10px; }
+    }
   </style>
 </head>
 <body>
@@ -38,6 +74,35 @@
   <div class="brand">Society Edition · Technical Proof of Concept</div>
   <h1>Wedding Album<br>Connectivity Test</h1>
   <p class="muted">Testing a free pCloud account as an image source for an independent wedding album. No account login, token, or storage service operated by Society Edition is used.</p>
+
+
+  <section class="panel album-demo" aria-labelledby="album-title">
+    <div class="album-top">
+      <div class="eyebrow">Test C · Folder-aware wedding album</div>
+      <h2 id="album-title">Cover &amp; ceremony chapters</h2>
+      <p class="muted">This section reads <code>00 - Cover</code> and <code>01 - Ceremony</code> from the same shared pCloud folder. It selects the cover and places ceremony photos automatically. Root-level test photos are preserved in Test B below.</p>
+      <button id="refresh-album" type="button">Refresh album from pCloud</button>
+      <div id="album-status" class="status album-status" role="status" aria-live="polite">Loading album folders…</div>
+    </div>
+    <div class="cover" aria-label="Wedding album cover">
+      <img id="cover-image" class="cover-image" alt="">
+      <div class="cover-copy">
+        <div class="smallcaps">The Wedding Album</div>
+        <h3>Olivia &amp; James</h3>
+        <div class="smallcaps">14 September 2024</div>
+        <p class="byline">A day to remember</p>
+      </div>
+    </div>
+    <div class="chapter" aria-labelledby="ceremony-title">
+      <header class="chapter-head">
+        <div class="eyebrow">Chapter One</div>
+        <h3 id="ceremony-title">The Ceremony</h3>
+        <p>Two hearts, one unforgettable day</p>
+      </header>
+      <div id="ceremony-empty" class="album-empty">Waiting for photographs in <code>01 - Ceremony</code>.</div>
+      <div id="ceremony-gallery" class="chapter-gallery"></div>
+    </div>
+  </section>
 
   <section class="panel" aria-labelledby="static-title">
     <div class="eyebrow">Test A · External Image Embedding</div>
@@ -50,12 +115,12 @@
   <section class="panel" aria-labelledby="dynamic-title">
     <div class="eyebrow">Test B · Automatic Folder Gallery</div>
     <h2 id="dynamic-title">Can the webpage discover new photographs?</h2>
-    <p class="muted">The button asks pCloud for the latest contents of your shared folder. If browser cross-origin access is allowed, all supported images will appear below automatically.</p>
+    <p class="muted">This original connectivity test displays photographs at the root of the shared folder. Photographs inside the Cover and Ceremony subfolders appear in Test C above.</p>
     <button id="load" type="button">Load / Refresh Album</button>
     <div id="gallery-status" class="status" role="status" aria-live="polite">Not tested yet.</div>
     <div id="gallery" class="grid"></div>
   </section>
-  <div class="foot">This test uses a shared link you supplied and only its publicly accessible contents. Anyone who receives this HTML file can see those public images. Do not use private photographs for testing. This is a public prototype. Do not use private photographs. Refresh the gallery after changing the approved pCloud folder to test updates.</div>
+  <div class="foot">Technical prototype using public test photographs only. The pCloud shared link is embedded in this publicly accessible webpage; the noindex instruction is not access control. The photos remain in pCloud. This album refreshes its folder list on page load or when you press Refresh, not continuously in the background.</div>
 </main>
 <script>
 (() => {
@@ -95,6 +160,104 @@
       setStatus(galleryStatus,`NOT PASSED: The webpage could not read folder metadata (${err.message}). This can be caused by browser CORS restrictions, local-file security or an API error. Test A may still pass.`, 'bad');
     } finally { button.disabled=false; }
   });
+
+  // Test C. The single shared parent folder controls the hero and the ceremony chapter.
+  const albumButton = document.getElementById('refresh-album');
+  const albumStatus = document.getElementById('album-status');
+  const coverImage = document.getElementById('cover-image');
+  const ceremonyGrid = document.getElementById('ceremony-gallery');
+  const ceremonyEmpty = document.getElementById('ceremony-empty');
+  const matchesPhoto = item => item && !item.isfolder && item.thumb &&
+    (item.contenttype?.startsWith('image/') || item.category === 1) &&
+    Number.isSafeInteger(Number(item.fileid)) && Number(item.fileid) > 0;
+  const sortByName = (a,b) => String(a.name || '').localeCompare(String(b.name || ''), 'en', {numeric:true});
+  const childFolder = (parent,name) =>
+    (Array.isArray(parent?.contents) ? parent.contents : []).find(item =>
+      item.isfolder && typeof item.name === 'string' && item.name.trim().toLowerCase() === name.toLowerCase());
+  const folderPhotos = (parent,folder) => {
+    if (!folder) return [];
+    // pCloud documents recursive contents. The parentfolderid fallback handles flat API responses.
+    const nested = Array.isArray(folder.contents) ? folder.contents.filter(matchesPhoto) : [];
+    const flat = Array.isArray(parent?.contents) ? parent.contents.filter(item =>
+      matchesPhoto(item) && String(item.parentfolderid) === String(folder.folderid)) : [];
+    return [...new Map([...nested,...flat].map(item => [String(item.fileid),item])).values()].sort(sortByName);
+  };
+  const showImage = (img,photo,size) => new Promise(resolve => {
+    img.onload=()=>resolve(true);
+    img.onerror=()=>resolve(false);
+    img.src=`${base}getpubthumb?code=${encodeURIComponent(code)}&fileid=${encodeURIComponent(photo.fileid)}&size=${size}`;
+  });
+
+  async function loadFolderAlbum() {
+    albumButton.disabled=true;
+    coverImage.removeAttribute('src');
+    coverImage.classList.remove('visible');
+    ceremonyGrid.replaceChildren();
+    ceremonyEmpty.classList.remove('is-hidden');
+    ceremonyEmpty.textContent='Checking the Ceremony folder…';
+    setStatus(albumStatus,'Reading album folders from pCloud…');
+    try {
+      const response=await fetch(`${base}showpublink?code=${encodeURIComponent(code)}`, {
+        method:'GET', mode:'cors', credentials:'omit', cache:'no-store'
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data=await response.json();
+      if (data.result !== 0 || !data.metadata?.isfolder) {
+        throw new Error(`pCloud result ${data.result}: ${data.error || 'No shared parent folder'}`);
+      }
+      const coverFolder=childFolder(data.metadata,'00 - Cover');
+      const ceremonyFolder=childFolder(data.metadata,'01 - Ceremony');
+      const coverPhotos=folderPhotos(data.metadata,coverFolder);
+      const ceremonyPhotos=folderPhotos(data.metadata,ceremonyFolder);
+      const warnings=[];
+      if (!coverFolder) warnings.push('Missing folder: 00 - Cover');
+      else if (!coverPhotos.length) warnings.push('No cover photo found');
+      if (!ceremonyFolder) warnings.push('Missing folder: 01 - Ceremony');
+      else if (!ceremonyPhotos.length) warnings.push('No ceremony photos found');
+      if (coverPhotos.length > 1) warnings.push(`Multiple cover photos (${coverPhotos.length}); showing first by filename`);
+
+      const imageLoads=[];
+      if (coverPhotos.length) {
+        const cover=coverPhotos[0];
+        coverImage.alt=`Wedding album cover: ${cover.name || 'selected photograph'}`;
+        coverImage.classList.add('visible');
+        imageLoads.push(showImage(coverImage,cover,'1600x1000'));
+      }
+      if (ceremonyPhotos.length) {
+        ceremonyEmpty.classList.add('is-hidden');
+        for (const [i,photo] of ceremonyPhotos.entries()) {
+          const figure=document.createElement('figure');
+          const img=document.createElement('img');
+          img.loading='eager'; // Small test gallery: complete thumbnail checks before declaring PASS.
+          img.alt=`Ceremony photograph: ${photo.name || `Photo ${i+1}`}`;
+          const caption=document.createElement('figcaption');
+          caption.textContent=photo.name || `Photograph ${i+1}`;
+          figure.append(img,caption);
+          ceremonyGrid.append(figure);
+          imageLoads.push(showImage(img,photo,'1200x900'));
+        }
+      } else {
+        ceremonyEmpty.textContent='No photographs yet. Add images to 01 - Ceremony in pCloud, then refresh this page.';
+      }
+      const results=await Promise.all(imageLoads);
+      const failed=results.filter(ok=>!ok).length;
+      if (failed) warnings.push(`${failed} thumbnail(s) could not be displayed`);
+      const summary=`${coverPhotos.length ? 'Cover selected' : 'Cover unavailable'}; ${ceremonyPhotos.length} ceremony photo(s) discovered.`;
+      if (warnings.length) {
+        setStatus(albumStatus,`CHECK: ${summary} ${warnings.join('; ')}.`, 'bad');
+      } else {
+        setStatus(albumStatus,`PASS: ${summary} All thumbnails loaded from the shared pCloud folder.`, 'ok');
+      }
+    } catch (error) {
+      ceremonyEmpty.textContent='Could not read the album. Check the public parent-folder link and try again.';
+      setStatus(albumStatus,`NOT PASSED: ${error.message}`, 'bad');
+    } finally {
+      albumButton.disabled=false;
+    }
+  }
+  albumButton.addEventListener('click',loadFolderAlbum);
+  loadFolderAlbum();
+
 })();
 </script>
 </body>
