@@ -59,6 +59,9 @@
     .chapter-gallery figcaption { color:var(--muted); font-size:11px; padding:5px 2px; overflow-wrap:anywhere; }
     .album-empty { padding:18px; text-align:center; border:1px dashed var(--line); color:var(--muted); font-size:13px; border-radius:8px; }
     .is-hidden { display:none; }
+    .folder-diagnostics { margin-top:12px; border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:#f8f5ef; color:var(--muted); }
+    .folder-diagnostics summary { cursor:pointer; font-size:13px; font-weight:700; }
+    .folder-diagnostics pre { margin:10px 0 0; font:12px/1.6 ui-monospace,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--ink); }
     button:disabled { opacity:.65; cursor:wait; }
     @media (max-width:600px) {
       .album-top,.chapter { padding:19px; }
@@ -83,6 +86,10 @@
       <p class="muted">This section reads <code>00 - Cover</code> and <code>01 - Ceremony</code> from the same shared pCloud folder. It selects the cover and places ceremony photos automatically. Root-level test photos are preserved in Test B below.</p>
       <button id="refresh-album" type="button">Refresh album from pCloud</button>
       <div id="album-status" class="status album-status" role="status" aria-live="polite">Loading album folders…</div>
+      <details id="folder-diagnostics" class="folder-diagnostics">
+        <summary>pCloud folder diagnostics</summary>
+        <pre id="folder-diagnostics-text">Checking shared folder contents…</pre>
+      </details>
     </div>
     <div class="cover" aria-label="Wedding album cover">
       <img id="cover-image" class="cover-image" alt="">
@@ -167,13 +174,38 @@
   const coverImage = document.getElementById('cover-image');
   const ceremonyGrid = document.getElementById('ceremony-gallery');
   const ceremonyEmpty = document.getElementById('ceremony-empty');
+  const diagnostics = document.getElementById('folder-diagnostics');
+  const diagnosticsText = document.getElementById('folder-diagnostics-text');
+  const normaliseFolderName = value => String(value || '')
+    .normalize('NFKC').replace(/[\u2010-\u2015\u2212]/g,'-')
+    .toLowerCase().replace(/\s*-\s*/g,'-').replace(/\s+/g,' ').trim();
+  const describeFolderResponse = metadata => {
+    const contents = Array.isArray(metadata?.contents) ? metadata.contents : [];
+    const folders = contents.filter(item => item?.isfolder);
+    const files = contents.filter(item => item && !item.isfolder);
+    const names = folders.map(item => JSON.stringify(item.name || '(unnamed)'));
+    const nested = folders.flatMap(item =>
+      (Array.isArray(item.contents) ? item.contents : [])
+        .filter(child => child?.isfolder).map(child => `${item.name}/${child.name}`);
+    const nestedDetails = folders.map(item =>
+      `${item.name}: ${Array.isArray(item.contents) ? item.contents.length + ' item(s) returned' : 'contents not included in API response'}`);
+    return [
+      `Shared link opens: ${metadata?.name || '(unnamed)'} (folder ID ${metadata?.folderid || 'unknown'})`,
+      `Direct child folders (${folders.length}): ${names.join(', ') || '(none)'}`,
+      `Root-level files (${files.length})`,
+      `Nested folder examples: ${nested.join(', ') || '(none returned)'}`,
+      ...nestedDetails,
+      'Expected directly inside the shared folder: 00 - Cover and 01 - Ceremony.',
+      'If pCloud lists other folders, check their location and names in the pCloud file manager.'
+    ].join('\n');
+  };
   const matchesPhoto = item => item && !item.isfolder && item.thumb &&
     (item.contenttype?.startsWith('image/') || item.category === 1) &&
     Number.isSafeInteger(Number(item.fileid)) && Number(item.fileid) > 0;
   const sortByName = (a,b) => String(a.name || '').localeCompare(String(b.name || ''), 'en', {numeric:true});
   const childFolder = (parent,name) =>
     (Array.isArray(parent?.contents) ? parent.contents : []).find(item =>
-      item.isfolder && typeof item.name === 'string' && item.name.trim().toLowerCase() === name.toLowerCase());
+      item.isfolder && typeof item.name === 'string' && normaliseFolderName(item.name) === normaliseFolderName(name));
   const folderPhotos = (parent,folder) => {
     if (!folder) return [];
     // pCloud documents recursive contents. The parentfolderid fallback handles flat API responses.
@@ -196,6 +228,7 @@
     ceremonyEmpty.classList.remove('is-hidden');
     ceremonyEmpty.textContent='Checking the Ceremony folder…';
     setStatus(albumStatus,'Reading album folders from pCloud…');
+    diagnosticsText.textContent='Checking shared folder contents…';
     try {
       const response=await fetch(`${base}showpublink?code=${encodeURIComponent(code)}`, {
         method:'GET', mode:'cors', credentials:'omit', cache:'no-store'
@@ -205,6 +238,7 @@
       if (data.result !== 0 || !data.metadata?.isfolder) {
         throw new Error(`pCloud result ${data.result}: ${data.error || 'No shared parent folder'}`);
       }
+      diagnosticsText.textContent=describeFolderResponse(data.metadata);
       const coverFolder=childFolder(data.metadata,'00 - Cover');
       const ceremonyFolder=childFolder(data.metadata,'01 - Ceremony');
       const coverPhotos=folderPhotos(data.metadata,coverFolder);
@@ -244,11 +278,15 @@
       if (failed) warnings.push(`${failed} thumbnail(s) could not be displayed`);
       const summary=`${coverPhotos.length ? 'Cover selected' : 'Cover unavailable'}; ${ceremonyPhotos.length} ceremony photo(s) discovered.`;
       if (warnings.length) {
-        setStatus(albumStatus,`CHECK: ${summary} ${warnings.join('; ')}.`, 'bad');
+        diagnostics.open=true;
+        setStatus(albumStatus,`CHECK: ${summary} ${warnings.join('; ')}. See pCloud folder diagnostics below.`, 'bad');
       } else {
+        diagnostics.open=false;
         setStatus(albumStatus,`PASS: ${summary} All thumbnails loaded from the shared pCloud folder.`, 'ok');
       }
     } catch (error) {
+      diagnostics.open=true;
+      diagnosticsText.textContent=`Could not read pCloud metadata: ${error.message}`;
       ceremonyEmpty.textContent='Could not read the album. Check the public parent-folder link and try again.';
       setStatus(albumStatus,`NOT PASSED: ${error.message}`, 'bad');
     } finally {
